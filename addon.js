@@ -1,6 +1,6 @@
 import { addonBuilder, serveHTTP } from "stremio-addon-sdk";
 import fetch from "node-fetch";
-import cheerio from "cheerio";
+import * as cheerio from "cheerio";
 
 /*
   =============================
