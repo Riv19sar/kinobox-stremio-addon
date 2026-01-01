@@ -4,8 +4,6 @@ const { addonBuilder, serveHTTP } = pkg;
 import fetch from "node-fetch";
 import * as cheerio from "cheerio";
 
-const PORT = process.env.PORT || 7000;
-
 /*
   =============================
   CACHE (in-memory, 6 hodin)
