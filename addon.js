@@ -4,23 +4,14 @@ const { addonBuilder, serveHTTP } = pkg;
 import fetch from "node-fetch";
 import * as cheerio from "cheerio";
 
-/*
-  =============================
-  CACHE (in-memory, 6 hodin)
-  =============================
-*/
+// Cache - 6 hodin
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 let cache = {
   timestamp: 0,
   data: []
 };
 
-/*
-  =============================
-  SCRAPER – Kinobox trendy
-  Zdroj: https://www.kinobox.cz/vod/trendy
-  =============================
-*/
+// Scraper Kinobox trendy filmy
 async function fetchKinoboxTrends() {
   const now = Date.now();
 
@@ -29,9 +20,7 @@ async function fetchKinoboxTrends() {
   }
 
   const response = await fetch("https://www.kinobox.cz/vod/trendy", {
-    headers: {
-      "User-Agent": "Mozilla/5.0"
-    }
+    headers: { "User-Agent": "Mozilla/5.0" }
   });
 
   if (!response.ok) {
@@ -46,76 +35,70 @@ async function fetchKinoboxTrends() {
   $(".vod-item").each((i, el) => {
     const title = $(el).find(".vod-item__title").text().trim();
     const link = $(el).find("a").attr("href");
-    const poster = $(el).find("img").attr("data-src") || $(el).find("img").attr("src");
+    const posterSrc = $(el).find("img").attr("data-src") || $(el).find("img").attr("src");
 
     if (!title || !link) return;
 
+    // Parsování ID z URL, např. /film/12345
+    const idMatch = link.match(/\/film\/(\d+)/);
+    const id = idMatch ? "kinobox-" + idMatch[1] : "kinobox-" + i;
+
+    // Upravená URL na poster
+    const poster = posterSrc
+      ? posterSrc.startsWith("http")
+        ? posterSrc
+        : "https://www.kinobox.cz" + posterSrc
+      : null;
+
     items.push({
-      id: "kinobox:" + link,
+      id,
       type: "movie",
       name: title,
-      poster: poster ? poster.startsWith("http") ? poster : "https://www.kinobox.cz" + poster : null,
+      poster,
       description: "Trendující titul dle Kinobox.cz",
       behaviorHints: { defaultVideoId: null }
+      // year můžeš přidat, pokud umíš získat
     });
   });
 
-  cache = {
-    timestamp: now,
-    data: items
-  };
+  cache = { timestamp: now, data: items };
+  console.log("Kinobox trendy filmy načteno:", items.length);
 
   return items;
 }
 
-/*
-  =============================
-  STREMIO ADDON
-  =============================
-*/
+// Stremio addon builder
 const builder = new addonBuilder({
   id: "cz.kinobox.trendy",
   version: "1.0.0",
   name: "Kinobox – VOD trendy",
   description: "Trendující filmy dle Kinobox.cz (bez streamů)",
   resources: ["catalog"],
-  types: ["movie", "series"],
+  types: ["movie"],
   catalogs: [
     {
       type: "movie",
       id: "kinobox_trendy_movies",
       name: "Kinobox – Trendy filmy"
-    },
-    {
-      type: "series",
-      id: "kinobox_trendy_series",
-      name: "Kinobox – Trendy seriály"
     }
   ]
 });
 
-/*
-  =============================
-  CATALOG HANDLER
-  =============================
-*/
+// Handler pro katalog
 builder.defineCatalogHandler(async ({ id }) => {
-  if (!id.startsWith("kinobox_trendy")) {
+  if (id !== "kinobox_trendy_movies") {
     return { metas: [] };
   }
 
   try {
     const metas = await fetchKinoboxTrends();
     return { metas };
-  } catch (err) {
+  } catch (e) {
+    console.error("Chyba při načítání Kinobox dat:", e);
     return { metas: [] };
   }
 });
 
-/*
-  =============================
-  SERVER
-  =============================
-*/
+// Server
 const PORT = process.env.PORT || 7000;
 serveHTTP(builder.getInterface(), { port: PORT });
