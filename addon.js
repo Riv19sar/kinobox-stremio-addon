@@ -1,7 +1,6 @@
-const { addonBuilder } = require('stremio-addon-sdk');
+const { addonBuilder, serveHTTP } = require('stremio-addon-sdk');
 const axios = require('axios');
 const cheerio = require('cheerio');
-const express = require('express');
 
 // Funkce pro scraping seznamu filmů z kinobox.cz
 async function scrapeKinobox() {
@@ -10,8 +9,6 @@ async function scrapeKinobox() {
         const $ = cheerio.load(response.data);
         const movies = [];
 
-        // Předpokládáme, že filmy jsou v elementech s třídou 'item' nebo podobné – uprav podle aktuálního HTML
-        // Z tvého popisu: Hledejme v <a> s třídami obsahujícími filmy
         $('a[href^="/film/"]').each((i, elem) => {
             if (movies.length >= 20) return; // Limit na 20
 
@@ -76,12 +73,5 @@ builder.defineCatalogHandler(async ({ type, id }) => {
     return { metas: [] };
 });
 
-// Spuštění serveru
-const app = express();
-app.use('/manifest.json', (req, res) => res.json(builder.getManifest()));
-app.use('/', builder.getInterface());
-
-const PORT = process.env.PORT || 7000;
-app.listen(PORT, () => {
-    console.log(`Addon běží na http://localhost:${PORT}/manifest.json`);
-});
+// Spuštění serveru pomocí SDK (nahrazuje Express)
+serveHTTP(builder.getInterface(), { port: process.env.PORT || 7000 });
