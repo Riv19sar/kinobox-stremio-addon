@@ -1,43 +1,51 @@
 const { addonBuilder, serveHTTP } = require('stremio-addon-sdk');
-const axios = require('axios');
-const cheerio = require('cheerio');
+const puppeteer = require('puppeteer');
 
-// Funkce pro scraping seznamu filmů z kinobox.cz
+// Funkce pro scraping seznamu filmů z kinobox.cz pomocí Puppeteer
 async function scrapeKinobox() {
     try {
-        const response = await axios.get('https://www.kinobox.cz/vod/trendy');
-        const $ = cheerio.load(response.data);
-        const movies = [];
+        const browser = await puppeteer.launch({
+            args: ['--no-sandbox', '--disable-setuid-sandbox'],
+            headless: true
+        });
+        const page = await browser.newPage();
+        await page.goto('https://www.kinobox.cz/vod/trendy', { waitUntil: 'networkidle2' });
 
-        $('a[href^="/film/"]').each((i, elem) => {
-            if (movies.length >= 20) return; // Limit na 20
+        const movies = await page.evaluate(() => {
+            const items = document.querySelectorAll('a[href^="/film/"]');
+            const result = [];
+            items.forEach((elem, i) => {
+                if (result.length >= 20) return;
 
-            const link = $(elem).attr('href');
-            const title = $(elem).find('.title').text().trim() || $(elem).text().trim(); // Český titul
-            const ratingElem = $(elem).find('.rating'); // Příklad: hledej rating
-            const rating = ratingElem.text().trim() || 'N/A';
-            const genresElem = $(elem).find('.genres'); // Příklad: žánry
-            const genres = genresElem.text().trim() || 'N/A';
-            const poster = $(elem).find('img').attr('src') || 'https://default-poster.jpg'; // Default obrázek, uprav na reálný
+                const link = elem.getAttribute('href');
+                const title = elem.querySelector('.title') ? elem.querySelector('.title').textContent.trim() : elem.textContent.trim() || 'N/A';
+                const ratingElem = elem.querySelector('.rating');
+                const rating = ratingElem ? ratingElem.textContent.trim() : 'N/A';
+                const genresElem = elem.querySelector('.genres');
+                const genres = genresElem ? genresElem.textContent.trim() : 'N/A';
+                const posterElem = elem.querySelector('img');
+                const poster = posterElem ? posterElem.getAttribute('src') : 'https://default-poster.jpg';
 
-            // Extrakce ID z linku (např. /film/12345-nazev -> id: 12345)
-            const idMatch = link.match(/\/film\/(\d+)-/);
-            const id = idMatch ? idMatch[1] : `kinobox-${i}`;
+                const idMatch = link.match(/\/film\/(\d+)-/);
+                const id = idMatch ? idMatch[1] : `kinobox-${i}`;
 
-            movies.push({
-                id: id,
-                type: 'movie',
-                name: title,
-                genres: genres.split(', '),
-                poster: poster.startsWith('http') ? poster : `https://www.kinobox.cz${poster}`,
-                rating: parseFloat(rating.replace('%', '')) / 10 || undefined, // Převeď na IMDB-style rating
-                background: poster, // Použij stejný jako poster
-                description: `Rating: ${rating}, Žánry: ${genres}`, // Krátký popis z dat
-                imdbRating: parseFloat(rating.replace('%', '')) / 10 || undefined,
-                releaseInfo: 'N/A' // Rok, pokud extrahuješ
+                result.push({
+                    id: id,
+                    type: 'movie',
+                    name: title,
+                    genres: genres.split(', '),
+                    poster: poster.startsWith('http') ? poster : `https://www.kinobox.cz${poster}`,
+                    rating: parseFloat(rating.replace('%', '')) / 10 || undefined,
+                    background: poster,
+                    description: `Rating: ${rating}, Žánry: ${genres}`,
+                    imdbRating: parseFloat(rating.replace('%', '')) / 10 || undefined,
+                    releaseInfo: 'N/A'
+                });
             });
+            return result;
         });
 
+        await browser.close();
         return movies;
     } catch (error) {
         console.error('Scraping error:', error);
@@ -59,7 +67,7 @@ const builder = new addonBuilder({
             type: 'movie',
             id: 'kinobox-trendy',
             name: 'Trendy VOD na Kinobox.cz',
-            extra: [] // Žádné extra filtry
+            extra: []
         }
     ]
 });
@@ -73,5 +81,5 @@ builder.defineCatalogHandler(async ({ type, id }) => {
     return { metas: [] };
 });
 
-// Spuštění serveru pomocí SDK (nahrazuje Express)
+// Spuštění serveru
 serveHTTP(builder.getInterface(), { port: process.env.PORT || 7000 });
