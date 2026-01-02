@@ -79,7 +79,7 @@ builder.defineCatalogHandler(async ({ type, id }) => {
 // Spuštění serveru
 const app = express();
 app.use('/manifest.json', (req, res) => res.json(builder.getManifest()));
-app.use('/', builder.getRouter());
+app.use('/', builder.getInterface());
 
 const PORT = process.env.PORT || 7000;
 app.listen(PORT, () => {
