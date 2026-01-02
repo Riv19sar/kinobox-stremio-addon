@@ -1,18 +1,19 @@
 {
-  "name": "kinobox-stremio-addon",
-  "version": "1.0.0",
-  "description": "Stremio catalog addon – Kinobox VOD trendy",
-  "main": "addon.js",
-  "type": "module",
-  "scripts": {
-    "start": "node addon.js"
-  },
-  "dependencies": {
-    "stremio-addon-sdk": "^1.6.10",
-    "node-fetch": "^3.3.2",
-    "cheerio": "^1.0.0-rc.12"
-  },
-  "engines": {
-    "node": ">=18"
-  }
+"name": "kinobox-stremio-addon",
+"version": "1.0.0",
+"description": "Stremio addon for Kinobox trendy movies",
+"main": "addon.js",
+"scripts": {
+"start": "node addon.js"
+},
+"dependencies": {
+"axios": "^1.7.7",
+"cheerio": "^1.0.0",
+"express": "^4.21.0",
+"stremio-addon-sdk": "^1.6.9"
+},
+"engines": {
+"node": ">=14.0.0"
+},
+"license": "MIT"
 }
